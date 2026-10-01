@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  
+<meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="canonical" href="https://upliftorch.com/tools/air-quality/">
+<link rel="alternate" hreflang="zh-TW" href="https://upliftorch.com/tools/air-quality/">
+<link rel="alternate" hreflang="en" href="https://upliftorch.com/tools/air-quality/en/">
+<link rel="alternate" hreflang="x-default" href="https://upliftorch.com/tools/air-quality/en/">
+<title>台灣空氣品質即時監測 | AQI 即時查詢、PM2.5 指標</title>
+<meta name="description" content="台灣空氣品質即時監測，提供全台 AQI 空氣品質指標、PM2.5、PM10、O3 等即時數據，依縣市查詢各監測站空品狀態與健康建議。">
+<meta name="keywords" content="AQI,空氣品質,PM2.5,台灣空氣品質,空氣污染,即時監測,空品指標">
+
+<meta property="og:title" content="台灣空氣品質即時監測 | AQI 查詢">
+<meta property="og:description" content="全台 AQI 空氣品質指標即時查詢，PM2.5、PM10、O3 監測數據一目了然。">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="zh_TW">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f0f4f8;--surface:#fff;--text:#1e293b;--text-secondary:#64748b;
+  --border:#e2e8f0;--primary:#3b82f6;--primary-dark:#2563eb;--primary-light:#dbeafe;
+  --header-bg:linear-gradient(135deg,#0f172a 0%,#1e3a5f 40%,#2563eb 100%);
+  --aqi-good:#00e400;--aqi-moderate:#c5b900;--aqi-sensitive:#ff7e00;
+  --aqi-unhealthy:#ff0000;--aqi-very:#8f3f97;--aqi-hazardous:#7e0023;
+  --radius:14px;--shadow:0 2px 16px rgba(0,0,0,.06);--shadow-lg:0 8px 32px rgba(0,0,0,.1);
+}
+[data-theme="dark"]{
+  --bg:#0f172a;--surface:#1e293b;--text:#e2e8f0;--text-secondary:#94a3b8;
+  --border:#334155;--primary:#60a5fa;--primary-dark:#93bbfd;--primary-light:rgba(59,130,246,.15);
+  --header-bg:linear-gradient(135deg,#020617 0%,#0f172a 40%,#1e3a5f 100%);
+  --shadow:0 2px 16px rgba(0,0,0,.3);--shadow-lg:0 8px 32px rgba(0,0,0,.4);
+}
+html,body{overflow-x:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+
+header{background:var(--header-bg);color:#fff;padding:24px 0;position:sticky;top:0;z-index:100;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+.header-inner{max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.brand{display:flex;align-items:center;gap:14px}
+.brand-icon{width:42px;height:42px;background:rgba(255,255,255,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;backdrop-filter:blur(8px)}
+.brand h1{font-size:21px;font-weight:700;letter-spacing:-.3px}
+.brand span{font-size:13px;opacity:.75;display:block;margin-top:2px}
+.header-actions{display:flex;align-items:center;gap:12px}
+.lang-switch{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:7px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s;backdrop-filter:blur(8px)}
+.lang-switch:hover{background:rgba(255,255,255,.22)}
+
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.breadcrumb{font-size:13px;color:var(--text-secondary,#64748b);margin-bottom:20px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.breadcrumb a{color:var(--text-secondary,#64748b)}
+.breadcrumb a:hover{color:var(--primary,#ec4899)}
+.breadcrumb .sep{opacity:.5}
+.breadcrumb [aria-current]{color:var(--text,#1e293b);font-weight:600}
+
+.summary-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px}
+.summary-card{background:var(--surface);border-radius:var(--radius);padding:20px 16px;text-align:center;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:transform .2s}
+.summary-card:hover{transform:translateY(-2px)}
+.summary-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.summary-card:nth-child(1)::before{background:var(--primary)}
+.summary-card:nth-child(2)::before{background:linear-gradient(90deg,var(--aqi-good),var(--aqi-sensitive))}
+.summary-card:nth-child(3)::before{background:var(--aqi-good)}
+.summary-card:nth-child(4)::before{background:var(--aqi-sensitive)}
+.summary-card:nth-child(5)::before{background:var(--aqi-unhealthy)}
+.icon-sprite{position:absolute;width:0;height:0;overflow:hidden}
+.ui-icon{width:1em;height:1em;display:inline-block;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.theme-toggle .ui-icon{font-size:20px;display:block}
+.theme-toggle .sun-icon{display:none}
+[data-theme="dark"] .theme-toggle .moon-icon{display:none}
+[data-theme="dark"] .theme-toggle .sun-icon{display:block}
+.summary-card .icon{font-size:20px;margin-bottom:6px;display:flex;justify-content:center;color:var(--primary)}
+.summary-card:nth-child(2) .icon{color:var(--aqi-moderate)}
+.summary-card:nth-child(3) .icon{color:var(--aqi-good)}
+.summary-card:nth-child(4) .icon{color:var(--aqi-sensitive)}
+.summary-card:nth-child(5) .icon{color:var(--aqi-unhealthy)}
+.summary-card .num{font-size:30px;font-weight:800;letter-spacing:-.5px}
+.summary-card .label{font-size:12px;color:var(--text-secondary);margin-top:4px;font-weight:500}
+
+.loading{text-align:center;padding:60px 20px}
+.loading .spinner{width:48px;height:48px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.error-msg{text-align:center;padding:40px;background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow)}
+.error-msg h3{color:#ef4444;margin-bottom:8px}
+.retry-btn{margin-top:12px;padding:10px 24px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px}
+
+.section-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:8px 0}
+
+.health-guide{background:var(--surface);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow);margin-bottom:36px}
+.health-guide h2{font-size:22px;margin-bottom:8px}
+.health-guide > p{color:var(--text-secondary);margin-bottom:20px;font-size:14px}
+.health-table{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;border-radius:var(--radius);overflow:hidden}
+.health-table th{padding:14px 16px;text-align:left;background:var(--primary-dark);color:#fff;font-weight:600}
+.health-table td{padding:14px 16px;border-bottom:1px solid var(--border)}
+.health-table tr:last-child td{border-bottom:none}
+.health-table tr:hover td{background:var(--bg)}
+.health-table .color-dot{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;margin-right:8px;box-shadow:0 2px 4px rgba(0,0,0,.15)}
+@media(max-width:768px){.health-table{font-size:12px}.health-table th,.health-table td{padding:10px 8px}}
+
+.faq{background:var(--surface);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow);margin-bottom:36px}
+.faq h2{font-size:22px;margin-bottom:8px}
+.faq > p{color:var(--text-secondary);margin-bottom:20px;font-size:14px}
+.faq-item{border-bottom:1px solid var(--border);padding:18px 0}
+.faq-item:last-child{border-bottom:none}
+.faq-q{font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;transition:color .2s}
+.faq-q:hover{color:var(--primary)}
+.faq-q::after{content:"＋";font-size:18px;transition:transform .3s;color:var(--primary);flex-shrink:0}
+.faq-item.open .faq-q::after{transform:rotate(45deg)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .4s ease;color:var(--text-secondary);line-height:1.9}
+.faq-item.open .faq-a{max-height:600px;padding-top:12px}
+
+footer{background:linear-gradient(135deg,#0f172a,#1e293b);color:#94a3b8;padding:40px 20px;text-align:center;font-size:13px;line-height:2.2}
+footer a{color:#93c5fd}
+footer .tools{margin-bottom:16px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+footer .tools a{background:rgba(255,255,255,.06);padding:4px 14px;border-radius:6px;transition:background .2s}
+footer .tools a:hover{background:rgba(255,255,255,.12);text-decoration:none}
+
+.no-results{text-align:center;padding:40px;color:var(--text-secondary);font-size:16px}
+
+.ref-tag{font-size:10px;vertical-align:super;color:var(--primary);cursor:pointer;font-weight:700;text-decoration:none;margin-left:1px}
+.ref-tag:hover{text-decoration:underline}
+.ref-list{list-style:none;counter-reset:ref;padding:0}
+.ref-list li{counter-increment:ref;font-size:13px;color:var(--text-secondary);line-height:1.8;padding:8px 0;border-bottom:1px solid var(--border);display:flex;gap:8px}
+.ref-list li:last-child{border-bottom:none}
+.ref-list li::before{content:"[" counter(ref) "]";font-weight:700;color:var(--primary);flex-shrink:0;min-width:28px}
+.ref-list li a{color:var(--primary);word-break:break-all}
+
+.map-label{background:var(--surface);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap;border:none}
+.map-label-aqi{font-weight:800;margin-right:4px}
+[data-theme="dark"] .map-label{background:var(--surface);color:var(--text)}
+
+.content-section{background:var(--surface);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow);margin-bottom:36px}
+.content-section h2{font-size:22px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.content-section h2 .section-icon{font-size:24px;flex-shrink:0}
+.content-section > .section-desc{color:var(--text-secondary);margin-bottom:20px;font-size:14px;line-height:1.8;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.content-section h3{font-size:17px;margin:24px 0 10px;color:var(--primary-dark)}
+.content-section p{color:var(--text-secondary);line-height:1.9;margin-bottom:14px}
+.content-section ul{color:var(--text-secondary);line-height:1.9;margin:0 0 14px 20px}
+.content-section li{margin-bottom:6px}
+
+.pollutant-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:18px;margin-top:20px}
+.pollutant-card{border:1px solid var(--border);border-radius:var(--radius);padding:24px;transition:all .2s;background:var(--surface)}
+.pollutant-card:hover{box-shadow:var(--shadow-lg);border-color:var(--primary);transform:translateY(-2px)}
+.pollutant-card-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.pollutant-card-header .icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0;line-height:1.1;text-align:center}
+.pollutant-card-header h3{margin:0;font-size:16px;color:var(--text)}
+.pollutant-card-header .subtitle{font-size:12px;color:var(--text-secondary);font-weight:400;margin-top:2px}
+.pollutant-card p{font-size:13px;color:var(--text-secondary);line-height:1.8;margin:0 0 10px}
+.pollutant-card .standard{font-size:12px;padding:6px 12px;background:var(--bg);border-radius:8px;color:var(--text-secondary);display:inline-block}
+
+.region-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;margin-top:20px}
+.region-card{border:1px solid var(--border);border-radius:var(--radius);padding:22px;transition:all .2s}
+.region-card:hover{box-shadow:var(--shadow);border-color:var(--primary-dark)}
+.region-card h3{font-size:15px;margin:0 0 10px;color:var(--text);display:flex;align-items:center;gap:6px}
+.region-card p{font-size:13px;color:var(--text-secondary);line-height:1.8;margin:0 0 10px}
+.region-card .region-aqi{font-size:12px;padding:4px 10px;border-radius:8px;font-weight:600;display:inline-block}
+
+.tip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;margin-top:20px}
+.tip-card{border-left:4px solid var(--primary);background:var(--bg);border-radius:0 var(--radius) var(--radius) 0;padding:20px 24px;transition:all .2s}
+.tip-card:hover{background:var(--primary-light)}
+.tip-card h3{font-size:15px;margin:0 0 8px;color:var(--text);display:flex;align-items:center;gap:8px}
+.tip-card p{font-size:13px;color:var(--text-secondary);line-height:1.8;margin:0}
+
+.season-timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:20px}
+.season-card{border:1px solid var(--border);border-radius:var(--radius);padding:22px;text-align:center;transition:all .2s;position:relative;overflow:hidden}
+.season-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.season-card .season-icon{font-size:32px;margin-bottom:10px;color:var(--primary-dark)}
+.season-card h3{font-size:15px;margin:0 0 10px;color:var(--text)}
+.season-card p{font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0 0 12px;text-align:left}
+.season-card .aqi-range{display:inline-block;padding:4px 14px;border-radius:12px;font-size:12px;font-weight:600}
+
+.impact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;margin-top:20px}
+.impact-card{border:1px solid var(--border);border-radius:var(--radius);padding:24px;transition:all .2s}
+.impact-card:hover{box-shadow:var(--shadow)}
+.impact-card h3{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.impact-card p{font-size:13px;color:var(--text-secondary);line-height:1.8;margin:0 0 8px}
+.impact-card .stat{font-size:13px;color:var(--primary-dark);font-weight:600;padding:6px 12px;background:var(--primary-light);border-radius:8px;display:inline-block}
+
+.std-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;border-radius:var(--radius);overflow:hidden;margin-top:16px}
+.std-table th{padding:12px 14px;text-align:left;background:#1e3a5f;color:#fff;font-weight:600;font-size:12px}
+[data-theme="dark"] .std-table th{background:#0f172a}
+[data-theme="dark"] .health-table th{background:#0f172a}
+[data-theme="dark"] .tip-card{background:var(--surface)}
+[data-theme="dark"] .tip-card:hover{background:var(--primary-light)}
+[data-theme="dark"] .leaflet-tile-pane{filter:brightness(.8) contrast(1.1) saturate(.8)}
+[data-theme="dark"] .leaflet-control-zoom a{background:var(--surface);color:var(--text);border-color:var(--border)}
+[data-theme="dark"] .leaflet-control-attribution{background:rgba(15,23,42,.8)!important;color:var(--text-secondary)!important}
+[data-theme="dark"] .leaflet-control-attribution a{color:var(--primary)!important}
+[data-theme="dark"] .leaflet-popup-content-wrapper{background:var(--surface);color:var(--text)}
+[data-theme="dark"] .leaflet-popup-tip{background:var(--surface)}
+[data-theme="dark"] .aqi-range,[data-theme="dark"] .region-aqi{color:#fff!important}
+.theme-toggle{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);width:38px;height:38px;border-radius:8px;font-size:18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.theme-toggle:hover{background:rgba(255,255,255,.22)}
+.std-table td{padding:10px 14px;border-bottom:1px solid var(--border)}
+.std-table tr:last-child td{border-bottom:none}
+.std-table tr:hover td{background:var(--bg)}
+.std-table .highlight{font-weight:700;color:var(--primary-dark)}
+
+.map-section{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:28px;padding:24px}
+.map-legend{margin-bottom:16px}
+.map-legend h3{font-size:15px;margin-bottom:10px}
+.map-legend-items{display:flex;flex-wrap:wrap;gap:12px 20px}
+.map-legend-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)}
+.map-legend-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;box-shadow:0 2px 4px rgba(0,0,0,.15)}
+.map-wrapper{display:flex;gap:20px;align-items:stretch}
+.map-container{flex:1;min-width:300px;position:relative;border-radius:var(--radius);overflow:hidden;height:600px}
+#leafletMap{width:100%;height:100%;border-radius:var(--radius);z-index:1}
+.map-sidebar{min-width:200px;max-width:280px;height:600px;display:flex;flex-direction:column}
+.map-sidebar h3{font-size:15px;margin-bottom:12px;flex-shrink:0}
+.map-county-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.map-county-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;cursor:pointer;transition:all .2s;font-size:13px}
+.map-county-item:hover{background:var(--primary-light)}
+.map-county-item .county-name{font-weight:600}
+.map-county-item .county-aqi{font-weight:800;padding:2px 10px;border-radius:6px;color:#fff;font-size:12px}
+
+@media(max-width:768px){
+  .map-wrapper{flex-direction:column;align-items:stretch}
+  .map-container{flex:none;height:50vh;min-height:320px;width:100%}
+  .map-section{padding:16px}
+  .map-sidebar{max-width:100%;width:100%;height:auto}
+  .map-county-list{max-height:200px;overflow-y:auto;flex-direction:row;flex-wrap:wrap;flex:none}
+  .map-county-item{flex:0 0 auto}
+  .season-timeline{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .brand h1{font-size:17px}
+  .header-inner{gap:8px}
+  .summary-bar{grid-template-columns:repeat(2,1fr)}
+  .summary-bar .summary-card:nth-child(5){grid-column:span 2}
+  .map-container{height:45vh;min-height:280px}
+  .season-timeline{grid-template-columns:1fr}
+  .pollutant-grid{grid-template-columns:1fr}
+  .container{padding:16px}
+}
+</style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://upliftorch.com/"},{"@type":"ListItem","position":2,"name":"免費線上工具","item":"https://upliftorch.com/tools"},{"@type":"ListItem","position":3,"name":"空氣品質監測","item":"https://upliftorch.com/tools/air-quality/"}]}
+</script>
+</head>
+<body>
+<svg class="icon-sprite" aria-hidden="true">
+  <symbol id="icon-radio-tower" viewBox="0 0 24 24"><path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9m2.9 2.8a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47M19.1 1.9a9.96 9.96 0 0 1 0 14.1m-9.6 2h5M8 22l4-11l4 11"/></symbol>
+  <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M13 17V9m5 8V5M3 3v16a2 2 0 0 0 2 2h16M8 17v-3"/></symbol>
+  <symbol id="icon-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="icon-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4m0 4h.01"/></symbol>
+  <symbol id="icon-shield-alert" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1zm-8-5v4m0 4h.01"/></symbol>
+  <symbol id="icon-microscope" viewBox="0 0 24 24"><path d="M6 18h8M3 22h18m-7 0a7 7 0 1 0 0-14h-1m-4 6h2m-2-2a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Zm3-6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/></symbol>
+  <symbol id="icon-calendar" viewBox="0 0 24 24"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></symbol>
+  <symbol id="icon-map" viewBox="0 0 24 24"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0zm.894.211v15M9 3.236v15"/></symbol>
+  <symbol id="icon-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="icon-heart-pulse" viewBox="0 0 24 24"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/><path d="M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/></symbol>
+  <symbol id="icon-ruler" viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Zm-6.8-2.8 2-2m-5-1 2-2m-5-1 2-2m7 11 2-2"/></symbol>
+  <symbol id="icon-book" viewBox="0 0 24 24"><path d="M12 7v14m-9-3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+  <symbol id="icon-flower" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1"/><circle cx="12" cy="8" r="2"/><path d="M12 10v12m0 0c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5m0 0c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5"/></symbol>
+  <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="icon-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></symbol>
+  <symbol id="icon-snowflake" viewBox="0 0 24 24"><path d="m10 20-1.25-2.5L6 18m4-14L8.75 6.5 6 6m8 14 1.25-2.5L18 18M14 4l1.25 2.5L18 6M17 21l-3-6h-4m7-12-3 6 1.5 3M2 12h6.5L10 9m10 1-1.5 2 1.5 2M22 12h-6.5L14 15M4 10l1.5 2L4 14m3 7 3-6-1.5-3M7 3l3 6h4"/></symbol>
+  <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
+</svg>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" fill="rgba(255,255,255,.9)"/><circle cx="12" cy="12" r="3.5" fill="#fff"/><path d="M12 7v2M12 15v2M7 12h2M15 12h2" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <h1>台灣空氣品質即時監測</h1>
+        <span id="updateTime">資料載入中...</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" aria-label="切換深色模式"><svg class="ui-icon moon-icon" aria-hidden="true"><use href="#icon-moon"/></svg><svg class="ui-icon sun-icon" aria-hidden="true"><use href="#icon-sun"/></svg></button>
+      <a href="https://upliftorch.com/tools/air-quality/en/" class="lang-switch">EN</a>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <nav class="breadcrumb" aria-label="麵包屑導覽">
+    <a href="https://upliftorch.com/">首頁</a>
+    <span class="sep">›</span>
+    <a href="https://upliftorch.com/tools">免費線上工具</a>
+    <span class="sep">›</span>
+    <span aria-current="page">空氣品質監測</span>
+  </nav>
+
+  <div class="summary-bar" id="summaryBar">
+    <div class="summary-card"><div class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-radio-tower"/></svg></div><div class="num" id="totalStations">--</div><div class="label">監測站總數</div></div>
+    <div class="summary-card"><div class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-chart"/></svg></div><div class="num" id="avgAqi">--</div><div class="label">全台平均 AQI</div></div>
+    <div class="summary-card"><div class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-circle-check"/></svg></div><div class="num" style="color:var(--aqi-good)" id="goodCount">--</div><div class="label">良好站數</div></div>
+    <div class="summary-card"><div class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-triangle-alert"/></svg></div><div class="num" style="color:var(--aqi-sensitive)" id="warnCount">--</div><div class="label">注意站數</div></div>
+    <div class="summary-card"><div class="icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-shield-alert"/></svg></div><div class="num" style="color:var(--aqi-unhealthy)" id="badCount">--</div><div class="label">不良站數</div></div>
+  </div>
+
+  <div class="map-section" id="mapSection">
+    <div class="map-legend">
+      <h3>AQI 等級說明</h3>
+      <div class="map-legend-items">
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#00e400"></div>良好 (0-50)</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#c5b900"></div>普通 (51-100)</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#ff7e00"></div>敏感族群不健康 (101-150)</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#ff0000"></div>不健康 (151-200)</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#8f3f97"></div>非常不健康 (201-300)</div>
+        <div class="map-legend-item"><div class="map-legend-dot" style="background:#7e0023"></div>危害 (301+)</div>
+      </div>
+    </div>
+    <div class="map-wrapper">
+      <div class="map-container" id="mapContainer">
+        <div id="leafletMap"></div>
+      </div>
+      <div class="map-sidebar">
+        <h3>各縣市平均 AQI</h3>
+        <div class="map-county-list" id="mapCountyList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="stationGrid" style="display:none"></div>
+
+  <section class="health-guide">
+    <h2>AQI 空氣品質指標對照表</h2>
+    <p>AQI（Air Quality Index）是環境部依據美國 EPA 標準制定的綜合空氣品質指標，將六種主要污染物濃度統一換算為 0 – 500 的數值，讓民眾快速了解空氣品質狀態與應採取的防護行動。<a class="ref-tag" href="#references">[1][2]</a></p>
+    <div style="overflow-x:auto">
+    <table class="health-table">
+      <thead><tr><th>AQI 範圍</th><th>等級</th><th>健康影響</th><th>一般族群建議</th><th>敏感族群建議</th></tr></thead>
+      <tbody>
+        <tr><td><span class="color-dot" style="background:#00e400"></span>0 – 50</td><td>良好</td><td>空氣品質令人滿意，污染物濃度極低</td><td>正常戶外活動</td><td>正常戶外活動</td></tr>
+        <tr><td><span class="color-dot" style="background:#c5b900"></span>51 – 100</td><td>普通</td><td>尚可接受，某些污染物可能對極敏感者產生輕微影響</td><td>正常活動，可留意空品變化</td><td>考慮減少長時間劇烈戶外運動</td></tr>
+        <tr><td><span class="color-dot" style="background:#ff7e00"></span>101 – 150</td><td>對敏感族群不健康</td><td>敏感族群（氣喘、心臟病、兒童、老人）可能出現症狀加劇</td><td>減少長時間劇烈戶外運動</td><td>減少戶外活動，必要時配戴口罩</td></tr>
+        <tr><td><span class="color-dot" style="background:#ff0000"></span>151 – 200</td><td>對所有族群不健康</td><td>所有人可能開始感到呼吸道不適、眼睛刺痛</td><td>減少戶外活動，外出配戴 N95 口罩</td><td>避免所有戶外活動，留在室內</td></tr>
+        <tr><td><span class="color-dot" style="background:#8f3f97"></span>201 – 300</td><td>非常不健康</td><td>健康警報等級，所有人可能出現明顯不適症狀</td><td>避免戶外活動，關閉門窗並開啟空氣清淨機</td><td>應留在室內、避免任何體力消耗</td></tr>
+        <tr><td><span class="color-dot" style="background:#7e0023"></span>301 – 500</td><td>危害</td><td>緊急健康警告，全民均面臨嚴重健康威脅</td><td>停止所有戶外活動，密封室內環境</td><td>緊急應變，必要時就醫</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2><svg class="ui-icon section-icon" aria-hidden="true"><use href="#icon-microscope"/></svg>六大空氣污染物完整解析</h2>
+    <p class="section-desc">AQI 由六項關鍵污染物的濃度綜合計算而來，取其中最高的子指標作為該小時的 AQI 值。每項污染物的來源、化學特性、健康危害與法規標準各不相同，深入了解有助於精準判讀空品資訊。</p>
+    <div class="pollutant-grid">
+      <div class="pollutant-card">
+        <div class="pollutant-card-header">
+          <div class="icon" style="background:linear-gradient(135deg,#e74c3c,#c0392b)">PM<br>2.5</div>
+          <div><h3>細懸浮微粒（PM2.5）</h3><div class="subtitle">Fine Particulate Matter</div></div>
+        </div>
+        <p>直徑小於 2.5 微米的極細顆粒，約為人類頭髮直徑的 1/28。由於粒徑極小，能穿透肺泡、進入血液循環，隨血流到達心臟、大腦等重要器官。</p>
+        <p>主要來源包括汽機車廢氣、工廠排放、露天燃燒、以及 SO2/NOx 在大氣中反應生成的二次氣膠。在台灣，PM2.5 是秋冬季空品惡化的首要元兇。長期暴露與心血管疾病、肺癌、中風密切相關，每增加 10 μg/m³ 可使全因死亡率上升 6%。<a class="ref-tag" href="#references">[3]</a></p>
+        <div class="standard">台灣標準（2025 年起）：年均 12 μg/m³ ｜ 日均 30 μg/m³ <a class="ref-tag" href="#references">[4]</a> ｜ WHO 建議：年均 5 μg/m³ <a class="ref-tag" href="#references">[5]</a></div>
+      </div>
+      <div class="pollutant-card">
+        <div class="pollutant-card-header">
+          <div class="icon" style="background:linear-gradient(135deg,#e67e22,#d35400)">PM<br>10</div>
+          <div><h3>懸浮微粒（PM10）</h3><div class="subtitle">Coarse Particulate Matter</div></div>
+        </div>
+        <p>直徑小於 10 微米的顆粒物，主要沉積在鼻腔、咽喉與支氣管等上呼吸道。PM10 中扣除 PM2.5 的粗顆粒（PM10-2.5）多來自機械性破碎過程。</p>
+        <p>來源包括道路揚塵、營建工地、自然風沙、農業翻土及工業排放。短期高濃度暴露可加重氣喘、過敏性鼻炎等呼吸道疾病，也可能攜帶重金屬、細菌等有害物質。台灣春季偶受蒙古沙塵暴影響時，PM10 可短時間飆升至數百 μg/m³。</p>
+        <div class="standard">台灣標準（2025 年起）：年均 30 μg/m³ ｜ 日均 75 μg/m³ <a class="ref-tag" href="#references">[4]</a> ｜ WHO 建議：年均 15 μg/m³ ｜ 日均 45 μg/m³ <a class="ref-tag" href="#references">[5]</a></div>
+      </div>
+      <div class="pollutant-card">
+        <div class="pollutant-card-header">
+          <div class="icon" style="background:linear-gradient(135deg,#3498db,#2980b9)">O₃</div>
+          <div><h3>臭氧（O3）</h3><div class="subtitle">Ground-Level Ozone</div></div>
+        </div>
+        <p>地面臭氧是典型的「二次污染物」，並非直接排放，而是氮氧化物（NOx）與揮發性有機物（VOCs）在強烈紫外線照射下經光化學反應生成。</p>
+        <p>夏季午後 12 – 16 時濃度最高，台北盆地、高雄等地尤為明顯。吸入過量會刺激呼吸道黏膜、降低肺功能、加重氣喘症狀。長期暴露可能導致慢性阻塞性肺病（COPD）。值得注意的是，交通繁忙路段因 NO 消耗 O3，臭氧濃度反而較低；郊區下風處才是高濃度區。</p>
+        <div class="standard">台灣標準：8 小時均值 60 ppb <a class="ref-tag" href="#references">[4]</a> ｜ WHO 建議：8 小時 100 μg/m³（約 50 ppb）<a class="ref-tag" href="#references">[5]</a></div>
+      </div>
+      <div class="pollutant-card">
+        <div class="pollutant-card-header">
+          <div class="icon" style="background:linear-gradient(135deg,#1abc9c,#16a085)">CO</div>
+          <div><h3>一氧化碳（CO）</h3><div class="subtitle">Carbon Monoxide</div></div>
+        </div>
+        <p>無色無味的有毒氣體，主要來自含碳物質不完全燃燒 — 汽車引擎、瓦斯熱水器、工業鍋爐、香菸燃燒等。由於無法被人體感官察覺，危險性極高。</p>
+        <p>CO 與血紅蛋白的親和力是氧氣的 200 – 250 倍，會形成碳氧血紅蛋白（COHb）導致組織缺氧。輕度中毒出現頭痛、暈眩、噁心；重度可導致意識喪失甚至死亡。環境監測中 CO 濃度通常不高，但交通繁忙路段、地下停車場及密閉空間須特別注意。</p>
+        <div class="standard">台灣標準：8 小時均值 9 ppm <a class="ref-tag" href="#references">[4]</a> ｜ WHO 建議：24 小時 4 mg/m³ <a class="ref-tag" href="#references">[5]</a></div>
+      </div>
+      <div class="pollutant-card">
+        <div class="pollutant-card-header">
+          <div class="icon" style="background:linear-gradient(135deg,#f39c12,#e67e22)">SO₂</div>
+          <div><h3>二氧化硫（SO2）</h3><div class="subtitle">Sulfur Dioxide</div></div>
+        </div>
+        <p>具有強烈刺激性氣味的無色氣體，主要來自燃煤發電廠、煉油廠、硫化物礦冶煉及含硫燃料燃燒。是酸雨的主要前驅物之一。</p>
+        <p>SO2 進入呼吸道後會溶於水形成亞硫酸，刺激眼睛、鼻腔與呼吸道黏膜，引發支氣管收縮。氣喘患者對 SO2 特別敏感，低濃度即可誘發症狀。在大氣中，SO2 經氧化反應可轉化為硫酸鹽氣膠，成為 PM2.5 的重要組成之一。近年台灣因減煤政策，SO2 排放量已顯著下降。</p>
+        <div class="standard">台灣標準：年均 30 ppb <a class="ref-tag" href="#references">[4]</a> ｜ WHO 建議：24 小時 40 μg/m³ <a class="ref-tag" href="#references">[5]</a></div>
+      </div>
+      <div class="pollutant-card">
+        <div class="pollutant-card-header">
+          <div class="icon" style="background:linear-gradient(135deg,#9b59b6,#8e44ad)">NO₂</div>
+          <div><h3>二氧化氮（NO2）</h3><div class="subtitle">Nitrogen Dioxide</div></div>
+        </div>
+        <p>紅棕色有毒氣體，帶有刺鼻味道，主要來自高溫燃燒過程 — 車輛引擎（尤其柴油車）、發電廠與工業鍋爐。都市空氣中 NO2 濃度與交通流量高度正相關。</p>
+        <p>NO2 可深入肺部引發發炎反應、增加呼吸道感染風險，兒童因呼吸頻率較高而更易受害。研究顯示長期暴露與兒童氣喘發病率增加 20 – 30% 相關。NO2 同時也是地面臭氧和二次 PM2.5 的重要前驅物，在光化學煙霧的形成中扮演關鍵角色。</p>
+        <div class="standard">台灣標準：年均 30 ppb <a class="ref-tag" href="#references">[4]</a> ｜ WHO 建議：年均 10 μg/m³ <a class="ref-tag" href="#references">[5]</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2><svg class="ui-icon section-icon" aria-hidden="true"><use href="#icon-calendar"/></svg>台灣空氣品質季節趨勢</h2>
+    <p class="section-desc">台灣地處亞熱帶，四面環海，空氣品質隨季節、地形與氣象條件有明顯變化。了解季節趨勢有助於提前規劃戶外活動與健康防護。</p>
+    <div class="season-timeline">
+      <div class="season-card">
+        <div class="season-icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-flower"/></svg></div>
+        <h3>春季（3 – 5 月）</h3>
+        <p>東北季風減弱、大陸冷氣團影響漸少。偶有境外沙塵暴侵襲（約 2 – 4 次/年），PM10 可瞬間飆升至 200 μg/m³ 以上。梅雨季前降雨偏少，中南部仍有空品不佳的日子。5 月後隨降雨增加逐漸好轉。</p>
+        <div class="aqi-range" style="background:#c5b90022;color:#a69000">常見 AQI 40 – 120</div>
+      </div>
+      <div class="season-card">
+        <div class="season-icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-sun"/></svg></div>
+        <h3>夏季（6 – 9 月）</h3>
+        <p>西南氣流帶來充沛對流雨，大氣擴散與沖刷效果佳，PM2.5 濃度降至全年最低。但紫外線強烈，午後光化學反應劇烈，盆地地形的台北 O3 偏高。颱風前後氣壓變化也會短暫影響空品。</p>
+        <div class="aqi-range" style="background:#00e40022;color:#006400">常見 AQI 20 – 70</div>
+      </div>
+      <div class="season-card">
+        <div class="season-icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-leaf"/></svg></div>
+        <h3>秋季（10 – 11 月）</h3>
+        <p>東北季風盛行，境外污染物隨氣流從中國東部南下。西半部因中央山脈阻擋，污染物無法向東擴散，沿海平原首當其衝。高屏地區常率先出現橘色警示，空品明顯惡化。</p>
+        <div class="aqi-range" style="background:#ff7e0022;color:#cc6500">常見 AQI 60 – 150</div>
+      </div>
+      <div class="season-card">
+        <div class="season-icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-snowflake"/></svg></div>
+        <h3>冬季（12 – 2 月）</h3>
+        <p>全年空品最差的季節。冷高壓南下造成逆溫層，大氣極度穩定不利擴散。中國華東工業區污染物隨東北季風長程傳輸，加上本地排放累積，西半部 PM2.5 頻繁紫爆。</p>
+        <div class="aqi-range" style="background:#ff000022;color:#cc0000">常見 AQI 80 – 200+</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2><svg class="ui-icon section-icon" aria-hidden="true"><use href="#icon-map"/></svg>台灣各區域空品特色</h2>
+    <p class="section-desc">台灣面積僅 3.6 萬平方公里，但受到中央山脈、盆地、平原等地形影響，加上各地產業結構與人口密度差異，空品表現南轅北轍。</p>
+    <div class="region-grid">
+      <div class="region-card">
+        <h3>北部（基隆、台北、新北、桃園）</h3>
+        <p>受盆地地形影響，冬季冷空氣下沉容易形成逆溫。交通排放為主要污染源（機動車占本地排放 40%+），夏季午後臭氧偏高。東北季風期間反而有助於污染物向南擴散。整體空品在全台屬中等偏好。</p>
+        <div class="region-aqi" style="background:#c5b90022;color:#a69000">年均 AQI 約 45 – 65</div>
+      </div>
+      <div class="region-card">
+        <h3>竹苗（新竹、苗栗）</h3>
+        <p>新竹著名的「風城」效應使大氣擴散條件極佳，年均風速達 4 m/s 以上。竹科園區帶來揮發性有機物（VOCs）排放，但量級有限。苗栗通霄因火力電廠，局部 SO2 濃度偶爾偏高。整體空品良好。</p>
+        <div class="region-aqi" style="background:#00e40022;color:#006400">年均 AQI 約 35 – 55</div>
+      </div>
+      <div class="region-card">
+        <h3>中部（台中、彰化、南投）</h3>
+        <p>台中火力發電廠為全台最大固定污染源之一，原有 10 部燃煤機組（共 5,500 MW），目前正逐步減煤轉型，2026 年將拆除 1、2 號機並新增燃氣機組<a class="ref-tag" href="#references">[11]</a>。冬季弱風場時影響範圍可達數十公里。彰化沿海工業區貢獻可觀排放。南投日月潭等山區因海拔較高，空品相對較好。</p>
+        <div class="region-aqi" style="background:#ff7e0022;color:#cc6500">年均 AQI 約 55 – 85</div>
+      </div>
+      <div class="region-card">
+        <h3>雲嘉南（雲林、嘉義、台南）</h3>
+        <p>雲林麥寮六輕工業區年排放量為全台前三大固定源。嘉義地處嘉南平原中心，秋冬季污染物在此累積。台南兼具石化工業（仁德、永康）與交通汙染，冬季頻繁出現橘色至紅色警示。此區也是農業廢棄物露天燃燒的熱點。</p>
+        <div class="region-aqi" style="background:#ff7e0022;color:#cc6500">年均 AQI 約 60 – 95</div>
+      </div>
+      <div class="region-card">
+        <h3>高屏（高雄、屏東）</h3>
+        <p>全台空品最嚴峻的區域。高雄擁有全台最密集重工業帶（鋼鐵、石化、造船、水泥），小港、林園、大寮為污染熱點。秋冬盛行風場將北部累積的污染物持續往南堆積，形成「高屏空品區」長期偏差的困境。屏東潮州盆地更有蓄積效應。</p>
+        <div class="region-aqi" style="background:#ff000022;color:#cc0000">年均 AQI 約 70 – 110</div>
+      </div>
+      <div class="region-card">
+        <h3>東部（宜蘭、花蓮、台東）</h3>
+        <p>中央山脈平均海拔 3,000 公尺的天然屏障，有效阻擋西半部污染物。加上人口與工業密度低（花東人口密度僅西部 1/10），空品全台最佳。花東縱谷 AQI 長期維持在良好等級，是名副其實的「台灣最後淨土」。</p>
+        <div class="region-aqi" style="background:#00e40022;color:#006400">年均 AQI 約 25 – 45</div>
+      </div>
+      <div class="region-card">
+        <h3>離島（澎湖、金門、馬祖）</h3>
+        <p>澎湖四面環海、年均風速超過 6 m/s，空品通常良好。金門、馬祖距中國大陸沿岸僅 2 – 10 公里，冬季境外污染物傳輸影響極為明顯，PM2.5 可飆至本島兩倍以上。連江縣（馬祖）曾記錄到 AQI 300+ 的危害等級。</p>
+        <div class="region-aqi" style="background:#c5b90022;color:#a69000">年均 AQI 差異極大（30 – 150+）</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2><svg class="ui-icon section-icon" aria-hidden="true"><use href="#icon-shield-check"/></svg>空品不佳時的完整防護指南</h2>
+    <p class="section-desc">當 AQI 進入橘色（101+）或紅色（151+）等級時，適當的防護措施能大幅降低空污對身體的急性與慢性傷害。以下建議適用於一般民眾與敏感族群。</p>
+    <div class="tip-grid">
+      <div class="tip-card">
+        <h3>口罩選擇與配戴</h3>
+        <p>一般布口罩或醫用外科口罩對 PM2.5 過濾效率僅 30 – 50%。建議選用 N95（過濾 ≥ 95%）或 KN95 口罩。配戴時務必確認鼻樑片密合、無側漏。含活性碳層的口罩可額外吸附有機氣體與異味。每日更換或依使用時數定期替換。</p>
+      </div>
+      <div class="tip-card">
+        <h3>室內空氣防護</h3>
+        <p>關閉門窗減少室外滲入（室內 PM2.5 約為室外 50 – 80%）。使用 HEPA 空氣清淨機（CADR ≥ 坪數 × 10）。避免室內燃香、吸菸、使用含 VOCs 的清潔劑或噴霧。可加裝窗戶密封條提升氣密性。定期更換濾網（3 – 6 個月）。</p>
+      </div>
+      <div class="tip-card">
+        <h3>運動時機調整</h3>
+        <p>運動時呼吸量增加 10 – 20 倍，吸入的污染物等比上升。AQI &lt; 50 適合任何戶外運動；50 – 100 建議縮短劇烈運動；&gt; 100 改為室內。若堅持戶外跑步，選擇清晨 5 – 7 點（交通污染最低）或雨後，遠離主要幹道至少 200 公尺。</p>
+      </div>
+      <div class="tip-card">
+        <h3>敏感族群特別照護</h3>
+        <p>兒童（呼吸頻率是成人 2 倍）、65 歲以上長者、孕婦、氣喘/COPD/心血管疾病患者為高風險族群。AQI &gt; 100 即應減少外出，隨身備妥急救藥物。留意早期症狀：持續咳嗽、胸悶、呼吸困難、眼睛刺痛、心悸，必要時立即就醫。</p>
+      </div>
+      <div class="tip-card">
+        <h3>通勤時的防護策略</h3>
+        <p>空污暴露量：機車 > 腳踏車 > 公車 > 捷運 > 私家車（車內循環）。機車騎士吸入 PM2.5 濃度是車內乘客的 2 – 3 倍。建議：配戴 N95 口罩、避開壅塞路段、選擇車流少的替代路線。汽車開啟內循環模式可降低 80% 外部污染。</p>
+      </div>
+      <div class="tip-card">
+        <h3>飲食與身體調理</h3>
+        <p>攝取富含抗氧化物的食物：維生素 C（柑橘、奇異果）、維生素 E（堅果、酪梨）、Omega-3（深海魚、亞麻籽）、茄紅素（番茄）。多喝水保持呼吸道黏膜濕潤，促進纖毛排除微粒。十字花科蔬菜（花椰菜、高麗菜）含硫化物可協助體內排毒。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2><svg class="ui-icon section-icon" aria-hidden="true"><use href="#icon-heart-pulse"/></svg>空氣污染對健康的長期影響</h2>
+    <p class="section-desc">世界衛生組織（WHO）已將室外空氣污染列為第一類致癌物<a class="ref-tag" href="#references">[6]</a>。全球每年約 420 萬人因室外空污過早死亡<a class="ref-tag" href="#references">[7]</a>。以下為各系統的影響摘要。</p>
+    <div class="impact-grid">
+      <div class="impact-card">
+        <h3>呼吸系統</h3>
+        <p>長期暴露於 PM2.5 導致肺功能持續下降，增加慢性阻塞性肺病（COPD）、肺癌、支氣管炎及兒童氣喘風險。PM2.5 每增加 10 μg/m³，肺癌風險上升約 8%，全因死亡率上升 6%。台灣肺癌已連續多年蟬聯癌症死因首位，非吸菸者肺癌比例逐年升高。</p>
+        <div class="stat">PM2.5 每 ↑ 10 μg/m³ → 肺癌風險 ↑ 8% <a class="ref-tag" href="#references">[3]</a></div>
+      </div>
+      <div class="impact-card">
+        <h3>心血管系統</h3>
+        <p>細懸浮微粒進入血液後引發全身性發炎與氧化壓力，加速動脈粥樣硬化、升高血壓。長期暴露顯著增加心肌梗塞、中風、心律不整、心臟衰竭風險。一項涵蓋 65 萬人的統合分析顯示，PM2.5 每增加 10 μg/m³，心血管死亡風險增加 11%。</p>
+        <div class="stat">全球 420 萬/年 空污早死，心血管疾病佔比最大 <a class="ref-tag" href="#references">[7][8]</a></div>
+      </div>
+      <div class="impact-card">
+        <h3>神經系統</h3>
+        <p>超微粒（粒徑 &lt; 0.1 μm）可經嗅覺神經直接進入大腦，與阿茲海默症、帕金森氏症發生率增加相關。兒童長期暴露於高空污環境，可能影響大腦白質發育、降低認知功能與學業表現。近期研究也將空污與憂鬱症、焦慮症風險升高做出關聯。</p>
+        <div class="stat">兒童高空污暴露 → 認知發展遲緩風險 ↑ 15%</div>
+      </div>
+      <div class="impact-card">
+        <h3>孕婦與胎兒</h3>
+        <p>孕期暴露於高濃度 PM2.5 與早產（風險 ↑ 18%）、低出生體重、妊娠高血壓、子癲前症等不良結果有關。空污微粒已被證實可穿越胎盤屏障，影響胎兒肺部與免疫系統發育。部分研究指出可能增加兒童自閉症譜系障礙風險。</p>
+        <div class="stat">孕期 PM2.5 暴露 → 早產風險 ↑ 18% <a class="ref-tag" href="#references">[9]</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2><svg class="ui-icon section-icon" aria-hidden="true"><use href="#icon-ruler"/></svg>國際空品標準比較</h2>
+    <p class="section-desc">各國對空氣品質的法規標準差異甚大。WHO 於 2021 年大幅收嚴建議值，反映出最新流行病學研究證據。台灣於 2025 年起實施新修標準（PM2.5 年均由 15 降至 12 μg/m³），為亞洲最嚴，但仍寬於 WHO 最新指引。</p>
+    <div style="overflow-x:auto">
+    <table class="std-table">
+      <thead><tr><th>污染物</th><th>台灣標準 <a class="ref-tag" href="#references" style="color:#93c5fd">[4]</a></th><th>美國 EPA <a class="ref-tag" href="#references" style="color:#93c5fd">[10]</a></th><th>歐盟</th><th>WHO 2021 <a class="ref-tag" href="#references" style="color:#93c5fd">[5]</a></th></tr></thead>
+      <tbody>
+        <tr><td>PM2.5（年均）</td><td>12 μg/m³</td><td>9 μg/m³</td><td>25 μg/m³</td><td class="highlight">5 μg/m³</td></tr>
+        <tr><td>PM2.5（日均）</td><td>30 μg/m³</td><td>35 μg/m³</td><td>—</td><td class="highlight">15 μg/m³</td></tr>
+        <tr><td>PM10（年均）</td><td>30 μg/m³</td><td>—</td><td>40 μg/m³</td><td class="highlight">15 μg/m³</td></tr>
+        <tr><td>O3（8hr）</td><td>60 ppb</td><td>70 ppb</td><td>60 ppb</td><td class="highlight">100 μg/m³</td></tr>
+        <tr><td>NO2（年均）</td><td>30 ppb</td><td>53 ppb</td><td>40 μg/m³</td><td class="highlight">10 μg/m³</td></tr>
+        <tr><td>SO2（年均）</td><td>30 ppb</td><td>—</td><td>—</td><td class="highlight">—（僅日均 40 μg/m³）</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="content-section" id="references">
+    <h2><svg class="ui-icon section-icon" aria-hidden="true"><use href="#icon-book"/></svg>參考資料來源</h2>
+    <p class="section-desc">本站內容基於以下權威機構之公開資料與學術文獻整理而成，所有即時監測數據來自環境部 API。</p>
+    <ol class="ref-list">
+      <li>環境部空氣品質監測網 — AQI 指標定義與分級標準。<a href="https://airtw.moenv.gov.tw/" target="_blank" rel="noopener">airtw.moenv.gov.tw</a></li>
+      <li>U.S. EPA — AQI Basics: 0–500 六級分類計算方法。<a href="https://www.airnow.gov/aqi/aqi-basics/" target="_blank" rel="noopener">airnow.gov</a></li>
+      <li>Hamra, G. B. et al. (2014). Outdoor Particulate Matter Exposure and Lung Cancer: A Systematic Review and Meta-Analysis. <em>Environmental Health Perspectives</em>, 122(9), 906–911. / Chen, J. & Hoek, G. (2020). Long-term exposure to PM and all-cause and cause-specific mortality. <em>Environment International</em>, 143, 105974. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5522148/" target="_blank" rel="noopener">PMC</a></li>
+      <li>環境部（2024 年 9 月 30 日）— 空氣品質標準修正，2025 年 1 月 1 日起施行。<a href="https://air.moenv.gov.tw/envtopics/AirQuality_20.aspx" target="_blank" rel="noopener">air.moenv.gov.tw</a></li>
+      <li>WHO (2021). Global Air Quality Guidelines: PM2.5, PM10, O3, NO2, SO2 and CO. <a href="https://www.who.int/publications/i/item/9789240034228" target="_blank" rel="noopener">who.int</a></li>
+      <li>IARC (2013). Outdoor air pollution classified as carcinogenic to humans (Group 1). <em>The Lancet Oncology</em>, 14(13), 1262–1263. <a href="https://www.iarc.who.int/news-events/iarc-outdoor-air-pollution-a-leading-environmental-cause-of-cancer-deaths/" target="_blank" rel="noopener">iarc.who.int</a></li>
+      <li>WHO — Ambient (outdoor) air pollution: Key facts. 4.2 million premature deaths annually. <a href="https://www.who.int/news-room/fact-sheets/detail/ambient-(outdoor)-air-quality-and-health" target="_blank" rel="noopener">who.int</a></li>
+      <li>Pope III, C. A. et al. (2004). Cardiovascular Mortality and Long-Term Exposure to Particulate Air Pollution. <em>Circulation</em>, 109(1), 71–77. <a href="https://pubmed.ncbi.nlm.nih.gov/14676145/" target="_blank" rel="noopener">PubMed</a></li>
+      <li>Sun, Y. et al. (2015). Ambient air pollution and risk of preterm birth: A meta-analysis. <em>International Journal of Environmental Research and Public Health</em>. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4555258/" target="_blank" rel="noopener">PMC</a></li>
+      <li>U.S. EPA (2024). Final Rule — Reconsideration of NAAQS for PM: annual PM2.5 lowered from 12 to 9 μg/m³. <a href="https://www.epa.gov/pm-pollution/final-reconsideration-national-ambient-air-quality-standards-particulate-matter-pm" target="_blank" rel="noopener">epa.gov</a></li>
+      <li>經濟部（2025）— 台中電廠減煤轉型：2026 年拆除 1、2 號機。<a href="https://www.moea.gov.tw/Mns/populace/news/News.aspx?kind=1&menu_id=40&news_id=119402" target="_blank" rel="noopener">moea.gov.tw</a></li>
+      <li>行政院（2023）— 運具電動化及無碳化關鍵戰略行動計畫：2030 市區公車電動化、2040 新售汽機車電動化。<a href="https://www.ey.gov.tw/File/D2A731DDD7EC55EC?A=C" target="_blank" rel="noopener">ey.gov.tw</a></li>
+    </ol>
+  </section>
+
+  <section class="faq" id="faq">
+    <h2>常見問題 FAQ</h2>
+    <p>以下整理台灣民眾最常詢問的空氣品質相關問題，從 AQI 基本觀念到日常防護策略一次解答。</p>
+    <div class="faq-item"><div class="faq-q">什麼是 AQI 空氣品質指標？怎麼計算的？</div><div class="faq-a">AQI（Air Quality Index）是環境部依據美國 EPA 方法制定的綜合指標。計算方式是將六項污染物（O3、PM2.5、PM10、CO、SO2、NO2）的即時濃度，各自透過分段線性函數轉換為 0 – 500 的子指標值，再取其中最大值作為該小時 AQI。決定 AQI 的那項污染物稱為「指標污染物」，代表當下空品最主要的健康威脅來源。</div></div>
+    <div class="faq-item"><div class="faq-q">PM2.5 和 PM10 有什麼差別？</div><div class="faq-a">PM2.5 指直徑小於 2.5 微米的細懸浮微粒，能穿透肺泡進入血液循環，對心肺系統傷害最大。PM10 指直徑小於 10 微米的懸浮微粒，主要沉積在上呼吸道。PM2.5 多來自燃燒過程（車輛、工廠、燃燒），PM10 的粗顆粒部分（2.5 – 10 μm）多來自揚塵、工地、風沙。在健康風險上，PM2.5 受到更多關注，因為它能直接進入血液影響全身器官。</div></div>
+    <div class="faq-item"><div class="faq-q">台灣空氣品質什麼時候最差？最好的時候呢？</div><div class="faq-a">最差：秋冬季節（10 月至隔年 3 月），東北季風帶來境外污染物、大氣穩定不利擴散，西半部平原污染物累積嚴重。一天之中，上午交通尖峰（7 – 9 時）與夜間逆溫層形成（20 – 24 時）也較差。最好：夏季（6 – 9 月），西南氣流帶來降雨沖刷，大氣擴散良好。一天中清晨 5 – 7 點、大雨後空品最佳。地理上，花東地區全年空品最好。</div></div>
+    <div class="faq-item"><div class="faq-q">AQI 超過 100 該怎麼辦？</div><div class="faq-a">AQI 101 – 150（橘色）：敏感族群應減少戶外活動、配戴口罩。一般人可縮短戶外運動時間。AQI 151 – 200（紅色）：所有人應減少戶外活動，外出務必配戴 N95 口罩，室內開啟空氣清淨機。AQI 201+（紫色/褐色）：避免一切戶外活動，密閉室內空間，關注環境部即時資訊。氣喘/心臟病患者隨身攜帶急救藥物。</div></div>
+    <div class="faq-item"><div class="faq-q">這個網站的資料來源與更新頻率？</div><div class="faq-a">本站資料 100% 來自環境部環境資料開放平臺（data.moenv.gov.tw）的 AQI 即時監測 API（aqx_p_432 資料集）。環境部每整點發布一次全台監測站數據，本站每 10 分鐘自動同步一次，確保顯示最新資訊。所有數據經環境部品保品管程序驗證。</div></div>
+    <div class="faq-item"><div class="faq-q">為什麼有些測站顯示「設備維護」或無資料？</div><div class="faq-a">監測站設備（如 β 射線衰減法 PM 監測器、UV 螢光法 SO2 分析儀等）需要定期維護校正，通常每季一次。維護期間特定項目或整站暫停回傳。若長期無資料，可能是設備汰換、站址搬遷或通訊線路故障。環境部全台約 80+ 座測站，極少數同時維護，不影響區域空品掌握。</div></div>
+    <div class="faq-item"><div class="faq-q">室內空氣品質也會受到室外空污影響嗎？</div><div class="faq-a">會。研究顯示，未使用空氣清淨機的一般住宅，室內 PM2.5 濃度約為室外的 50 – 80%（滲透率因建物氣密性而異）。加上室內本身的污染源——烹飪油煙（PM2.5 可瞬間飆至 300+ μg/m³）、香菸、燃香、清潔劑 VOCs、建材甲醛、寵物皮屑等——室內空品可能比室外更差。建議搭配 HEPA 空氣清淨機並保持良好通風習慣。</div></div>
+    <div class="faq-item"><div class="faq-q">空氣清淨機怎麼選？HEPA 跟負離子有差嗎？</div><div class="faq-a">HEPA（High-Efficiency Particulate Air）濾網能物理性過濾 99.97% 的 0.3 μm 微粒，是目前最有效的微粒過濾技術。選購重點：CADR（潔淨空氣輸出率）≥ 房間坪數 × 10；含活性碳層可吸附甲醛、VOCs；每 3 – 6 個月更換濾網。負離子機理論上能使微粒帶電沉降，但效果有限且可能產生臭氧（O3）副產物。建議以 HEPA 為主、負離子為輔。</div></div>
+    <div class="faq-item"><div class="faq-q">為什麼冬天空氣品質特別差？</div><div class="faq-a">三大原因疊加：（1）東北季風將中國華東（長三角、珠三角）工業區污染物帶往台灣，傳輸距離 800 – 1,500 km；（2）冷高壓南下造成逆溫層（低層暖、高層冷的反常結構），大氣穩定、地面空氣無法上升擴散；（3）冬季降雨量僅夏季的 1/3 – 1/5，缺乏雨水沖刷效果。三者疊加使西半部 PM2.5 頻繁超標。</div></div>
+    <div class="faq-item"><div class="faq-q">境外污染和本地污染各佔多少？</div><div class="faq-a">根據環境部歷年研究與源解析結果：冬季 PM2.5 約 30 – 40% 來自境外傳輸（主要是中國東部沿海），60 – 70% 為本地排放。夏季境外影響降至 10% 以下。本地排放結構：交通運輸約 30%、工業排放約 28%、電力業約 15%、營建揚塵約 8%、農業及其他約 19%。值得注意的是，境外的 30 – 40% 往往是「壓垮空品的最後一根稻草」，在本地排放已使 AQI 偏高時，境外加持就突破紅線。</div></div>
+    <div class="faq-item"><div class="faq-q">騎機車通勤，空污暴露量有多高？</div><div class="faq-a">機車騎士是所有通勤方式中空污暴露量最高的族群。台大公衛研究指出，尖峰時段機車騎士吸入的 PM2.5 濃度是車內乘客的 2 – 3 倍、捷運乘客的 4 – 5 倍。主因是直接暴露在車流廢氣中，且騎乘時呼吸量大。防護建議：N95 口罩（每日更換）、避開壅塞路段、選擇車流量較少的替代路線、通勤後洗臉清潔鼻腔。長期而言，改搭大眾運輸或電動機車可大幅降低暴露。</div></div>
+    <div class="faq-item"><div class="faq-q">跑步或運動時，空品要注意什麼？</div><div class="faq-a">運動時呼吸量增加 10 – 20 倍，且從鼻呼吸轉為口呼吸，繞過鼻腔的過濾機制。AQI &lt; 50：適合任何戶外運動。AQI 50 – 100：可運動但縮短高強度時間。AQI &gt; 100：改室內運動。若堅持戶外跑步，最佳時段為清晨 5 – 7 時（交通汙染尚低）或大雨過後。地點選擇公園、河濱等遠離主要道路 200m 以上的區域。運動後若出現持續咳嗽或呼吸不適，應就醫評估。</div></div>
+    <div class="faq-item"><div class="faq-q">台灣政府在改善空品方面做了哪些努力？</div><div class="faq-a">近年重大政策包括：（1）空污總量管制：高屏及中部空品區實施 PM2.5 總量管制，要求大型污染源逐年削減排放量；（2）燃煤電廠轉型：推動台中、興達電廠減煤及天然氣轉型；（3）老舊柴油車汰換：補助二期以前柴油大貨車淘汰更新；（4）電動運具推廣：2030 年市區公車全面電動化、2035 年公務小客車全面電動化、2040 年新售汽機車全面電動化目標<a class="ref-tag" href="#references">[12]</a>；（5）秋冬應變措施：每年 10 月至 3 月啟動預警機制，達橘色警示即通知大型污染源降載減排。</div></div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="tools">
+    <a href="https://upliftorch.com/tools/convert-to-webp/">圖片轉 WebP</a>
+    <a href="https://upliftorch.com/tools/mp3-cutter/">MP3 剪輯</a>
+    <a href="https://upliftorch.com/tools/create-ico/">ICO 產生器</a>
+    <a href="https://upliftorch.com/tools/url-codec/">URL 編碼</a>
+  </div>
+  <div>資料來源：<a href="https://data.moenv.gov.tw/" target="_blank" rel="noopener">環境部環境資料開放平臺</a>（aqx_p_432 資料集）</div>
+  <div>© <script>document.write(new Date().getFullYear())</script> Upliftorch. All rights reserved.</div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(() => {
+  'use strict';
+
+  const API_URL = 'http://localhost:7001/api/aqi/data';
+
+  let allStations = [];
+
+  function getAqiLevel(aqi) {
+    const n = parseInt(aqi, 10);
+    if (isNaN(n) || n < 0) return { level: 'unknown', color: '#999', bg: '#eee', label: '無資料', labelEn: 'N/A' };
+    if (n <= 50) return { level: 'good', color: '#00e400', bg: '#f0fdf4', label: '良好', labelEn: 'Good' };
+    if (n <= 100) return { level: 'moderate', color: '#c5b900', bg: '#fefce8', label: '普通', labelEn: 'Moderate' };
+    if (n <= 150) return { level: 'sensitive', color: '#ff7e00', bg: '#fff7ed', label: '對敏感族群不健康', labelEn: 'Unhealthy for Sensitive' };
+    if (n <= 200) return { level: 'unhealthy', color: '#ff0000', bg: '#fef2f2', label: '對所有族群不健康', labelEn: 'Unhealthy' };
+    if (n <= 300) return { level: 'unhealthy', color: '#8f3f97', bg: '#faf5ff', label: '非常不健康', labelEn: 'Very Unhealthy' };
+    return { level: 'unhealthy', color: '#7e0023', bg: '#fef2f2', label: '危害', labelEn: 'Hazardous' };
+  }
+
+  function getWindDir(deg) {
+    const d = parseFloat(deg);
+    if (isNaN(d)) return '';
+    const dirs = ['北','北北東','東北','東北東','東','東南東','東南','南南東','南','南南西','西南','西南西','西','西北西','西北','北北西'];
+    return dirs[Math.round(d / 22.5) % 16];
+  }
+
+  function getDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  let highlightLayer = null;
+  let nearbyVisible = false;
+
+  function clearNearby() {
+    if (highlightLayer) highlightLayer.clearLayers();
+    nearbyVisible = false;
+  }
+
+  function showNearbyOnMap(lat, lng) {
+    if (highlightLayer) highlightLayer.clearLayers();
+    nearbyVisible = true;
+
+    const nearby = allStations
+      .map(s => {
+        const sLat = parseFloat(s.latitude);
+        const sLng = parseFloat(s.longitude);
+        if (isNaN(sLat) || isNaN(sLng)) return null;
+        return { ...s, dist: getDistance(lat, lng, sLat, sLng) };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 6);
+
+    nearby.forEach((s, i) => {
+      const sLat = parseFloat(s.latitude);
+      const sLng = parseFloat(s.longitude);
+      const aqi = parseInt(s.aqi, 10);
+      const info = getAqiLevel(s.aqi);
+      const pm25 = s['pm2.5'] || s.pm25 || '--';
+
+      const ring = L.circleMarker([sLat, sLng], {
+        radius: 16,
+        fillColor: info.color,
+        color: '#fff',
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 0.35,
+      });
+      ring.addTo(highlightLayer);
+
+      const label = L.marker([sLat, sLng], {
+        icon: L.divIcon({
+          className: 'map-label',
+          html: `<span class="map-label-aqi" style="color:${info.color}">${isNaN(aqi) ? '--' : aqi}</span>${s.sitename || ''} <span style="opacity:.6;font-weight:400">PM2.5:${pm25}</span>`,
+          iconSize: null,
+          iconAnchor: [-12, 12],
+        }),
+      });
+      label.addTo(highlightLayer);
+
+      if (i === 0) {
+        markerLayer.eachLayer(marker => {
+          const ll = marker.getLatLng();
+          if (Math.abs(ll.lat - sLat) < 0.001 && Math.abs(ll.lng - sLng) < 0.001) {
+            marker.openPopup();
+          }
+        });
+      }
+    });
+  }
+
+  // === 地圖相關（Leaflet） ===
+  let leafletMap = null;
+  let markerLayer = null;
+
+  function initMap() {
+    if (leafletMap) return;
+    const taiwanBounds = L.latLngBounds([21.5, 117.5], [26.5, 122.5]);
+    leafletMap = L.map('leafletMap', {
+      center: [23.7, 120.96],
+      zoom: 7,
+      zoomControl: true,
+      attributionControl: true,
+      maxBounds: taiwanBounds,
+      maxBoundsViscosity: 1.0,
+      minZoom: 6,
+      maxZoom: 14,
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 14,
+    }).addTo(leafletMap);
+    markerLayer = L.layerGroup().addTo(leafletMap);
+    highlightLayer = L.layerGroup().addTo(leafletMap);
+    window.addEventListener('resize', () => { leafletMap.invalidateSize(); });
+    setTimeout(() => { leafletMap.invalidateSize(); }, 200);
+    setTimeout(() => { leafletMap.invalidateSize(); }, 1000);
+  }
+
+  function renderMap() {
+    initMap();
+    markerLayer.clearLayers();
+
+    allStations.forEach(s => {
+      const lat = parseFloat(s.latitude);
+      const lng = parseFloat(s.longitude);
+      if (isNaN(lat) || isNaN(lng)) return;
+
+      const info = getAqiLevel(s.aqi);
+      const aqi = parseInt(s.aqi, 10);
+      const pm25 = s['pm2.5'] || s.pm25 || '--';
+
+      const marker = L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: info.color,
+        color: '#fff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.85,
+      });
+
+      marker.bindPopup(`
+        <div style="font-weight:700;font-size:15px">${s.sitename || ''}</div>
+        <div style="font-size:12px;color:#64748b">${s.county || ''}</div>
+        <div style="font-size:22px;font-weight:800;color:${info.color};margin:4px 0">${isNaN(aqi) ? '--' : aqi} <span style="font-size:13px;font-weight:400">${info.label}</span></div>
+        <div style="font-size:12px;color:#64748b">PM2.5: ${pm25} · O₃: ${s.o3 || '--'} · ${s.pollutant ? '指標: ' + s.pollutant : ''}</div>
+      `, { className: 'aqi-popup' });
+
+      marker.on('click', () => {
+        const sLat = parseFloat(s.latitude);
+        const sLng = parseFloat(s.longitude);
+        leafletMap.setView([sLat, sLng], 12, { animate: true });
+        showNearbyOnMap(sLat, sLng);
+      });
+
+      marker.addTo(markerLayer);
+    });
+
+    leafletMap.off('click').on('click', (e) => {
+      if (nearbyVisible) {
+        clearNearby();
+      } else {
+        leafletMap.setView(e.latlng, Math.max(leafletMap.getZoom(), 11), { animate: true });
+        showNearbyOnMap(e.latlng.lat, e.latlng.lng);
+      }
+    });
+
+    setTimeout(() => { leafletMap.invalidateSize(); }, 100);
+    setTimeout(() => { leafletMap.invalidateSize(); }, 500);
+    renderCountyList();
+  }
+
+  function renderCountyList() {
+    const list = document.getElementById('mapCountyList');
+    if (!list) return;
+
+    const countyMap = {};
+    allStations.forEach(s => {
+      const county = s.county || '未知';
+      const aqi = parseInt(s.aqi, 10);
+      if (isNaN(aqi)) return;
+      if (!countyMap[county]) countyMap[county] = [];
+      countyMap[county].push(aqi);
+    });
+
+    const counties = Object.entries(countyMap).map(([name, vals]) => ({
+      name,
+      avg: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+    })).sort((a, b) => a.avg - b.avg);
+
+    list.innerHTML = counties.map(c => {
+      const info = getAqiLevel(c.avg);
+      return `<div class="map-county-item" data-county="${c.name}"><span class="county-name">${c.name}</span><span class="county-aqi" style="background:${info.color}">${c.avg}</span></div>`;
+    }).join('');
+
+    list.addEventListener('click', (e) => {
+      const item = e.target.closest('.map-county-item');
+      if (!item) return;
+      const county = item.dataset.county;
+      const countyStations = allStations.filter(s => s.county === county);
+      if (countyStations.length === 0) return;
+      const lats = countyStations.map(s => parseFloat(s.latitude)).filter(v => !isNaN(v));
+      const lngs = countyStations.map(s => parseFloat(s.longitude)).filter(v => !isNaN(v));
+      const cLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+      const cLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+      document.getElementById('mapSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      leafletMap.setView([cLat, cLng], 11, { animate: true });
+      showNearbyOnMap(cLat, cLng);
+    });
+  }
+
+  // === 摘要與資料 ===
+  function updateSummary() {
+    const valid = allStations.filter(s => !isNaN(parseInt(s.aqi, 10)));
+    const total = valid.length;
+    const avg = total > 0 ? Math.round(valid.reduce((sum, s) => sum + parseInt(s.aqi, 10), 0) / total) : 0;
+    const good = valid.filter(s => parseInt(s.aqi, 10) <= 50).length;
+    const warn = valid.filter(s => { const a = parseInt(s.aqi, 10); return a > 50 && a <= 150; }).length;
+    const bad = valid.filter(s => parseInt(s.aqi, 10) > 150).length;
+
+    document.getElementById('totalStations').textContent = allStations.length;
+    document.getElementById('avgAqi').textContent = avg;
+    document.getElementById('goodCount').textContent = good;
+    document.getElementById('warnCount').textContent = warn;
+    document.getElementById('badCount').textContent = bad;
+  }
+
+  function normalizeRecord(r) {
+    const out = {};
+    Object.keys(r).forEach(k => { out[k.toLowerCase()] = r[k]; });
+    return out;
+  }
+
+  async function fetchData(retries = 3) {
+    const mapEl = document.getElementById('mapContainer');
+    if (!allStations.length) {
+      mapEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在載入空氣品質資料…</p></div>';
+    }
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(API_URL, { signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error('API 回應錯誤：' + res.status);
+        const data = await res.json();
+        const records = Array.isArray(data.data) ? data.data : (data.data && data.data.records) || data.records || [];
+
+        if (records.length === 0) throw new Error('無法取得監測資料');
+
+        allStations = records.map(normalizeRecord);
+        if (!document.getElementById('leafletMap')) {
+          mapEl.innerHTML = '<div id="leafletMap"></div>';
+          leafletMap = null;
+          markerLayer = null;
+        }
+        updateSummary();
+        renderMap();
+
+        const time = allStations[0]?.publishtime || '';
+        if (time) {
+          document.getElementById('updateTime').textContent = '更新時間：' + time;
+        }
+        return;
+      } catch (err) {
+        if (attempt < retries) {
+          continue;
+        }
+        mapEl.innerHTML = `<div class="error-msg"><h3>資料載入失敗</h3><p>${err.message}</p><button class="retry-btn" onclick="fetchData()">重新載入</button></div>`;
+      }
+    }
+  }
+
+  function bindEvents() {
+    document.querySelectorAll('.faq-item').forEach(item => {
+      item.querySelector('.faq-q').addEventListener('click', () => {
+        item.classList.toggle('open');
+      });
+    });
+  }
+
+  function applyTheme(dark) {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }
+
+  function init() {
+    const saved = localStorage.getItem('theme');
+    const preferDark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(preferDark);
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      applyTheme(!isDark);
+    });
+
+    bindEvents();
+    fetchData();
+    setInterval(fetchData, 600000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+
+<script>document.querySelectorAll(".current-year").forEach(function (el) { el.textContent = new Date().getFullYear(); });</script>
+
+<footer class="open-source-attribution" style="padding:24px;text-align:center"><a href="https://upliftorch.com/">Upliftorch</a> · <a href="https://upliftorch.com/tools/air-quality/">Official demo / 線上工具</a></footer>
+</body>
+</html>
